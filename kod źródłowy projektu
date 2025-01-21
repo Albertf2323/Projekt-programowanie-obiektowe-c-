@@ -1,0 +1,275 @@
+#include <iostream>
+#include <string>
+#include <cstdlib> // do rand()
+using namespace std;
+
+
+/* gra składa się z postaci ktore wybiera ktore wybiera gracz, i przeciwnikow ktorzy sa przydzielani losowo, kazde starcie konczy ture. i przydziela 
+
+Możliwe zachowania gracza:
+- atak wręcz
+    - zachowanie pozwalające odebrać część zdrowia przeciwnikowi
+    - trwa jedną turę
+    - jeśli wróg jednocześnie zaatakuje, możliwe są 2 adarzenia z prawdopodobieństwem 50%:
+        - gracz wykonuje udany atak, a sam pozostaje nienaruszony
+        - wróg wykonuje udany atak, a sam pozostaje nienaruszony
+    - gracz nie może podczas ataku wręcz wykonać żadnej innej czynności
+    - atak wręcz zabiera część staminy
+- obrona
+    - obrona pozwala całkowicie zablokować atak wroga
+    - odparty atak zabiera staminę
+    - obrona jest skuteczna tylko wtedy, gdy stamina jest większa od 30
+    - gracz nie może podczas obrona wykonać żadnej innej czynności
+    - podczas obrony stamina wolniej się regeneruje
+- unik (prawdopodobienstwo)
+    - to zachowanie pozwala na uniknięcie ataku z niskim zużuciem staminy
+    - prawdpodobieństwo skuteczności uniku jest jednak 85%
+    - unik zabiera pewną część staminy
+- leczenie
+    - pozwala na regenerację 50 pkt zdrowia
+    - gracz nie może podczas leczenia wykonać żadnej innej czynności
+    - gracz jest wrażliwy na ataki
+- atak z łuku
+    - kosztuje jedną strzałę
+    - ma określone prawdopodobieństwo trafienia
+    - gdy wróg zaatakuje wręcz, możliwe są 2 zdarzenia:
+        - z prawdopodobieństwem trafenia atak z łuku się uda, gracz pozostaje nienaruszony
+        - wpp. atak z łuku się nie uda, wróg skutecznie zada atak wręcz graczowi
+- kula ognia
+    - wróg otrzymuje atak kuli ognia, która go zapala otrzymuje obrażenia przez 3 kolejne tury
+        - w pierwszej turze wróg otrzymuje większe obrażenie
+    - kula ognia odnawia się co 2 tury
+
+    */
+
+
+
+enum Stan{
+    ATAK,
+    OBRONA,
+    LECZENIE
+};
+
+class Wrog;
+
+class Postac {
+public:
+    string imie;
+    int zdrowie = 100;
+    int stamina = 100;
+    Stan stan = OBRONA;
+    int sila_ataku = 20;
+    int pozostale_leczenia = 5;
+
+    virtual void atak() { // virtual - metoda, którą można nadpisać
+        stan = ATAK;
+        cout << "Postac atakuje!" << endl;
+    }
+
+    //////////////
+ int get_zdrowie() const {
+        return zdrowie;
+    }
+
+    //////////////
+
+    void ustaw_stan_postaci(int stan_postaci){
+        if(stan_postaci == 1){
+            obrona();
+        } else if(stan_postaci == 2){atak();}
+        else if(stan_postaci == 3){leczenie();}
+    }
+
+    void leczenie(){
+        stan = LECZENIE;
+        if(pozostale_leczenia == 0){
+            cout << "Nie udalo sie uleczyc - wykorzystano wszystkie leczenia!" << endl;
+            return;
+        }
+        if (zdrowie <= 50){
+            zdrowie = zdrowie + 50;
+            cout << "Postac uleczona do " << zdrowie << "!" << endl;
+        } else {
+            zdrowie = 100;
+            cout << "Postac uleczona do pełna!" << endl;
+        }
+        pozostale_leczenia -= 1;
+    }
+
+    void obrona(){
+        stan = OBRONA;
+        cout << "Postac się broni!" << endl;
+    }
+
+    void proba_obrony(Postac * postac){
+        if(wystarczy_staminy()){
+            int spadek_staminy = postac->sila_ataku;
+            zmniejsz_stamine(spadek_staminy);
+            cout << "Obrona postaci udana!" << endl;
+        } else {
+            int spadek_zdrowia = postac->sila_ataku;
+            zmniejsz_zdrowie(spadek_zdrowia);
+            cout << "Obrona postaci nieudana - za mało staminy!" << endl;
+        }
+    }
+
+    void zmniejsz_stamine(int wartosc){
+        stamina = stamina - wartosc;
+        if(stamina < 0)
+            stamina = 0;
+        cout << "Stamina postaci zmniejszona do " << stamina << endl;
+    }
+
+    void zmniejsz_zdrowie(int wartosc){
+        zdrowie = zdrowie - wartosc;
+        if(zdrowie < 0)
+            zdrowie = 0;
+        cout << "Zdrowie postaci zmniejszone do " << zdrowie << endl;
+    }
+
+    bool wystarczy_staminy(){
+        return stamina > 30; 
+    }
+
+    void proba_ataku(Postac * postac){
+        if(wystarczy_staminy()){
+            postac->zmniejsz_zdrowie(sila_ataku);
+            cout << "Atak postaci udany!" << endl;
+        } else {
+            cout << "Atak postaci nieudany - za mało staminy!" << endl;
+        }
+    }
+    void zregeneruj_stamine(){
+        stamina += 10;
+        if(stamina > 100)
+            stamina = 100;
+    }
+};
+
+// Wrog musi mieć taką metodę, jak postac
+class Wrog : public Postac {
+public:
+    void atak() override {
+        stan = ATAK;
+        cout << "Wrog atakuje!" << endl;
+    }
+};
+
+void starcie(Postac* postac, Wrog* wrog){
+    if(postac->stan == ATAK){
+        if (wrog->stan == OBRONA){
+            wrog->proba_obrony(postac);
+        } else if (wrog->stan == ATAK){
+            if(std::rand() < RAND_MAX/2){
+                wrog->proba_ataku(postac);
+            } else {
+                postac->proba_ataku(wrog);
+            }
+        }
+    } else if(postac->stan == OBRONA){
+        if(wrog->stan == ATAK){
+            postac->proba_obrony(wrog);
+        }
+    } else if(postac->stan == LECZENIE){
+        if(wrog->stan == ATAK){
+            wrog->proba_ataku(postac);
+        }
+    }
+}
+
+class Wojownik : public Postac {
+public:
+    void atak() override { // nadpisanie metody
+        stan = ATAK;
+        cout << "Wojownik atakuje!" << endl;
+    }
+};
+
+class Kolczan {
+    int ilosc_strzal;
+    int pojemnosc_kolczanu;
+};
+
+class Lucznik : public Postac {
+    Kolczan kolczan;
+public:
+    Lucznik(Kolczan& kol) : kolczan(kol) {}
+
+    void atak() override {
+        stan = ATAK;
+        cout << "Lucznik atakuje!" << endl;
+    }
+};
+
+class Mag : public Postac {
+    int mana;
+public:
+    void atak() override {
+        stan = ATAK;
+        cout << "Mag atakuje!" << endl;
+    }
+};
+
+int main(){
+    Wrog wrog;
+    Mag mag;
+    Wojownik wojownik;
+    Postac nieznana_postac;
+    Kolczan kolczan;
+    Lucznik lucznik(kolczan); // wywołanie konstruktora łucznika z kolczanem
+    Postac* postac;
+
+    cout << "Wybierz postać:" << endl;
+    cout << "1. Wojownik" << endl;
+    cout << "2. Lucznik" << endl;
+    cout << "3. Mag" << endl;
+    int wybor;
+    cin >> wybor;
+    if (wybor==1)
+        postac = new Wojownik();
+
+    else if (wybor==2)
+        postac = new Lucznik(kolczan);
+
+    else if (wybor==3)
+        postac = new Mag();
+    // wszystkie postacie dziedziczą po klasie Postac, więc można je ustawić w tablicy typu Postac
+    Postac* tablica_postaci[] = { &wrog, &mag, &wojownik, &nieznana_postac, &lucznik};
+    for (Postac* postac : tablica_postaci) {
+        //postac->atak(); // Wywołanie metody odpowiedniej dla klasy
+    }
+
+
+    int liczba_starc = 20;
+    for(int numer_starcia = 1; numer_starcia <= liczba_starc; numer_starcia ++){
+        int nowy_stan_postaci;
+        cout << "Wybierz nowy stan postaci: " <<endl;
+        cin >> nowy_stan_postaci;
+        postac->ustaw_stan_postaci(nowy_stan_postaci);
+
+        int liczba_losowa = std::rand();
+        int nowy_stan_wroga;
+        if(liczba_losowa < RAND_MAX / 2)
+            nowy_stan_wroga = 1;
+        else nowy_stan_wroga = 2;
+
+        wrog.ustaw_stan_postaci(nowy_stan_wroga);
+
+        starcie(postac,&wrog);
+        /////////
+
+        if (postac->get_zdrowie() == 0) {
+        cout << "Postac nie ma zdrowia, koniec starcia!" << endl;
+        break;  // Kończymy pętlę, jeśli zdrowie postaci wynosi 0
+    }
+        ////
+        wrog.zregeneruj_stamine();
+        postac->zregeneruj_stamine();
+     
+    }
+
+    // Polimorfizm działa, ponieważ wywołanie postac->atak() wywoła odpowiednią metodę dla typu obiektu
+    wojownik.atak();
+
+    return 0;
+}
