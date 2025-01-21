@@ -244,6 +244,9 @@ int main(){
     for(int numer_starcia = 1; numer_starcia <= liczba_starc; numer_starcia ++){
         int nowy_stan_postaci;
         cout << "Wybierz nowy stan postaci: " <<endl;
+        cout << "1. obrona: " <<endl;
+        cout << "2. Atak: " <<endl;
+        cout << "3. Leczenie: " <<endl;
         cin >> nowy_stan_postaci;
         postac->ustaw_stan_postaci(nowy_stan_postaci);
 
